@@ -21,16 +21,15 @@ try:
     
     # mostrar estado, latencia y codificación
     print("\n--- ESTADO DE LA CONEXIÓN ---")
-    print(f"Código Final: {respuesta.status_code} ({respuesta.reason})")
-    print(f"Latencia: {respuesta.elapsed.total_seconds()} segundos")
+    print(f"Estado final de la solicitud: {respuesta.status_code} ({respuesta.reason})")
+    print(f"Latencia (tiempo de respuesta): {respuesta.elapsed.total_seconds()} segundos")
     print(f"Codificación detectada: {respuesta.encoding}")
 
     # comprobar si hubo redirecciones
     if respuesta.history:
         print("\n--- RASTREO DE REDIRECCIONES ---")
         for paso in respuesta.history:
-            print(f"Saltó desde: {paso.url} (Estado: {paso.status_code})")
-        print(f"Llegó a: {respuesta.url}")
+            print(f"Redirigido desde '{paso.url}' a '{respuesta.url}' (Estado: {paso.status_code})")
 
     # analizar el contenido HTML descargado (peso y título)
     print("\n--- ANÁLISIS DE CONTENIDO ---")
@@ -58,16 +57,16 @@ try:
         print("No se detectaron cookies en la respuesta inicial.")
     else:
         for cookie in respuesta.cookies:
-            print(f"Nombre: {cookie.name} | Secure: {cookie.secure} | Dominio: {cookie.domain}")
+            seguridad = "✅ Segura" if cookie.secure else "❌ No segura"
+            print(f"Nombre: {cookie.name} | Seguridad: {seguridad} | Dominio: {cookie.domain}")
 
 except requests.exceptions.Timeout:
-    # error si se agota el tiempo de espera
-    print("❌ Error: Tiempo de espera agotado (Timeout).")
+    print("❌ Error: Tiempo de espera agotado (Timeout).") # error si se agota el tiempo de espera
 
 except requests.exceptions.ConnectionError:
-    # error si falla la conexión o DNS
-    print("❌ Error: Problema de conexión (DNS o Red).")
+    print("❌ Error: Problema de conexión (DNS o Red).") # error si falla la conexión o DNS
 
 except Exception as e:
-    # si algo falla inesperadamente
-    print(f"❌ Ocurrió un error: {e}")
+    print(f"❌ Ocurrió un error: {e}") # si algo falla inesperadamente
+
+
