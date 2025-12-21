@@ -1,27 +1,24 @@
 import ssl
 import socket
-host = "enti.com"
 
-# La funcio rep el nom del host (wikipedia.com) i el port (per defecte 443)
-def is_self_signed_certificate(host, port=443):
-    # Creem un context SSL per a la connexió
+def verificar_certificat_autofirmat(host, port=443): # esbrina si el certificat se l'han fet ells mateixos retorna true si Ã©s autofirmat, false si Ã©s de confianÃ§a
+    # prepara una connexiÃ³ exigent que ho verifiqui tot
     context = ssl.create_default_context()
     context.check_hostname = True
-    # Exigim la verificació del certificat
     context.verify_mode = ssl.CERT_REQUIRED
-    # Intentem establir una connexió SSL/TLS
+    
     try:
+        # intenta connectar de forma segura estÃ ndard
         with socket.create_connection((host, port), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname=host):
-                # Si la connexió es exitosa, el certificat no és autofirmat
-                    return False
+                # si no hi ha error, Ã©s que el certificat Ã©s oficial
+                return False
     except ssl.SSLCertVerificationError as e:
-        # Si hi ha un error de verificació del certificat, comprovem si és un certificat autofirmat
-        if "self signed" in str(e).lower() or "certificate verify failed" in str(e).lower():
-            return True
-        return False # Si és un altre tipus d'error de verificació, retornem False
-    except Exception:
+        # si falla, mirem si Ã©s perquÃ¨ Ã©s autofirmat
+        error_str = str(e).lower()
+        if "self signed" in error_str or "certificate verify failed" in error_str:
+            return True 
         return False
-
-
-print(is_self_signed_certificate(host))
+    except:
+        # si Ã©s un altre error no podem assegurar res
+        return False

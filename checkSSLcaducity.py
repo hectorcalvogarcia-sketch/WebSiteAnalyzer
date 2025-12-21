@@ -1,28 +1,30 @@
 import ssl
 import socket
 from datetime import datetime
-host = "chatgpt.com"
 
-def check_certificate_validity(host, port=443):
-    # Creem un context SSL per a la connexiÛ i desactivem la verificaciÛ del certificat per permetre l'obtenciÛ de certificats caducats
+def verificar_caducitat_ssl(host, port=443): # comprova si el certificat de seguretat ha caducat, retorna true si est√† caducat, false si est√† b√©
+    # crea una configuraci√≥ b√†sica que no verifiqui res encara
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_OPTIONAL
+    
     try:
+        # connecta i demana el certificat al servidor
         with socket.create_connection((host, port), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname=host) as ssock:
                 cert = ssock.getpeercert()
 
+        # si no hi ha certificat o no t√© data, assumim que est√† caducat
         if not cert or 'notAfter' not in cert:
-            return True  # Si no es pot obtenir el certificat, considerem que est‡ caducat
+            return True 
 
-        expiration_date = cert['notAfter']
-        expiration_date_formatted = datetime.strptime(expiration_date, '%b %d %H:%M:%S %Y %Z')
-    
-        current_date = datetime.utcnow()
-        # si la data actual es mes gran que la data de caducitat, el certificat ha caducat
-        return True if expiration_date_formatted < current_date else False
-    except ssl.SSLError:
-        return True  # Si hi ha un error SSL, considerem que el certificat est‡ caducat o no v‡lid
-
-print(check_certificate_validity(host))
+        # converteix la data del certificat a un format entenedor
+        fmt = '%b %d %H:%M:%S %Y %Z'
+        data_expiracio = datetime.strptime(cert['notAfter'], fmt)
+        
+        # mira si la data actual √©s posterior a la de caducitat
+        return datetime.utcnow() > data_expiracio
+        
+    except:
+        # si dona error en connectar assumim que no √©s v√†lid
+        return True

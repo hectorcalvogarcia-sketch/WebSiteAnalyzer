@@ -1,56 +1,52 @@
 import requests
 import time
 import urllib.parse as urlparse
-import os
 
-def validate_url(url: str) -> bool:
+def validar_url(url):
+    # mira si l'url és vàlida a priori i comença per http o https
     parsed = urlparse.urlparse(url)
     return parsed.scheme in ("http", "https") and parsed.netloc != ""
 
-def sanitize_url(url: str) -> str:
-    return url.strip()
-
-def check_url_alive(url: str) -> dict:
+def mirar_si_respon(url):
+    # prova de connectar 
     try:
         response = requests.get(url, timeout=5)
+        # torna un diccionari dient que està alive i el codi d'estat
         return {"alive": True, "status_code": response.status_code}
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
+        # si falla torna que no està alive i l'error
         return {"alive": False, "error": str(e)}
 
-def measure_load_time(url: str) -> float:
+def mesurar_temps(url):
+    # cronometra quant triga a carregar la pàgina
     start = time.time()
-    requests.get(url, timeout=5)
+    try:
+        requests.get(url, timeout=5)
+    except:
+        pass
     end = time.time()
+    # arrodoneix a 2 decimals per sanititzar
     return round(end - start, 2)
 
-def get_http_headers(url: str) -> dict:
-    response = requests.get(url, timeout=5)
-    return dict(response.headers)
+def analyze_url(url):
+    # funció principal per analitzar l'url
+    url = url.strip()
 
-def save_scan_status(status: str):
-    os.makedirs("data", exist_ok=True)
-    with open("data/results.txt", "a") as f:
-        f.write(f"Estado escaneo: {status}\n")
+    if not validar_url(url):
+        return {"url": url, "error": "url no vàlida", "alive": False}
 
-def analyze_url(url: str) -> dict:
-    url = sanitize_url(url)
+    resultat = {"url": url}
 
-    if not validate_url(url):
-        return {"url": url, "error": "URL no válida"}
+    # mira si respon
+    estat = mirar_si_respon(url)
+    if not estat["alive"]:
+        resultat["alive"] = False
+        resultat["error"] = estat["error"]
+        return resultat
 
-    result = {"url": url, "https": url.startswith("https")}
+    # si arriba a aquí és que està online
+    resultat["alive"] = True
+    resultat["status_code"] = estat["status_code"]
+    resultat["load_time"] = mesurar_temps(url)
 
-    alive = check_url_alive(url)
-    if not alive["alive"]:
-        result["alive"] = False
-        result["error"] = alive["error"]
-        save_scan_status("FALLIDO")
-        return result
-
-    save_scan_status("EN CURSO")
-    result["alive"] = True
-    result["status_code"] = alive["status_code"]
-    result["load_time"] = measure_load_time(url)
-    result["headers"] = get_http_headers(url)
-
-    return result
+    return resultat
