@@ -9,6 +9,7 @@ import headers
 import checkInsecureTLSversion
 import checkSSLcaducity
 import checkSelfsigned
+import cve_correlation
 
 def mostrar_seccio(titol, contingut):
     """
@@ -71,17 +72,25 @@ def main():
     print("\n -> Cercant tecnologies utilitzades...")
     detect_res = Detect.detect_technologies(target_url)
     
-    llista_tech = []
+    llista_tech = {}
     for t in detect_res.get("technologies", []):
         nom = t.get('name', 'desconegut')
         tipus = t.get('type', 'general')
         ver = t.get('version') or '?'
-        llista_tech.append(f"{nom} ({tipus}) v:{ver}")
+        if nom:
+            llista_tech[nom.lower()] = ver
         
     tech_summary = {
         "Tecnologies detectades": llista_tech if llista_tech else ["no s'ha detectat res específic"]
     }
     mostrar_seccio("TECNOLOGIES", tech_summary)
+
+    if llista_tech:
+        print("\n -> Cercant vulnerabilitats conegudes (CVE)...")
+        cve_cve_results = cve_correlation.search_cve(llista_tech)
+        mostrar_seccio("VULNERABILITATS CVE", cve_cve_results)
+    else:
+        print("\n[!] No s'han detectat tecnologies, saltant cerca de CVEs")
 
     # 3. anàlisi de capçaleres
     print("\n -> Revisant capçaleres http...")
