@@ -1,73 +1,38 @@
-import requests # librería para conectar con servidores y descargar páginas web
-import re # librería para buscar patrones de texto específicos (como el título) dentro del código
+import requests
+import re
 
-# pedir URL al usuario
-url = input("Introduce URL (ej: google.com): ")
+def analitzar_capcaleres(url): # analitza la informació bàsica i les capçaleres del web
+    resultats = {}
+    # fa veure que és un navegador normal per evitar bloquejos
+    capcaleres_navegador = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
 
-# "autocorrector": asegurar que empieza por https://
-if not url.startswith("http"):
-    url = "https://" + url
-
-# definir cabeceras para parecer un navegador real y evitar bloqueos (403 Forbidden)
-cabeceras_navegador = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-}
-
-print(f"Conectando a {url}...")
-
-try:
-    # hacer la petición enviando nuestras cabeceras falsas
-    respuesta = requests.get(url, headers=cabeceras_navegador, timeout=10, allow_redirects=True)
-    
-    # mostrar estado, latencia y codificación
-    print("\n--- ESTADO DE LA CONEXIÓN ---")
-    print(f"Código Final: {respuesta.status_code} ({respuesta.reason})")
-    print(f"Latencia: {respuesta.elapsed.total_seconds()} segundos")
-    print(f"Codificación detectada: {respuesta.encoding}")
-
-    # comprobar si hubo redirecciones
-    if respuesta.history:
-        print("\n--- RASTREO DE REDIRECCIONES ---")
-        for paso in respuesta.history:
-            print(f"Saltó desde: {paso.url} (Estado: {paso.status_code})")
-        print(f"Llegó a: {respuesta.url}")
-
-    # analizar el contenido HTML descargado (peso y título)
-    print("\n--- ANÁLISIS DE CONTENIDO ---")
-    peso_kb = len(respuesta.content) / 1024
-    print(f"Peso de la respuesta: {peso_kb:.2f} KB")
-
-    # buscar el título de la página usando una expresión regular simple
-    titulo = re.findall('<title>(.*?)</title>', respuesta.text, re.IGNORECASE)
-    if titulo:
-        print(f"Título de la web: {titulo[0].strip()}")
-    else:
-        print("Título de la web: No encontrado")
-
-    # buscar cabeceras de seguridad específicas
-    print("\n--- CHECK DE SEGURIDAD ---")
-    claves_seguridad = ['Strict-Transport-Security', 'X-Frame-Options', 'Content-Security-Policy', 'Server', 'X-Powered-By']
-    
-    for clave in claves_seguridad:
-        valor = respuesta.headers.get(clave, "NO PRESENTE ⚠️")
-        print(f"{clave}: {valor}")
-
-    # mostrar cookies con detalles de seguridad
-    print("\n--- COOKIES DETECTADAS ---")
-    if not respuesta.cookies:
-        print("No se detectaron cookies en la respuesta inicial.")
-    else:
-        for cookie in respuesta.cookies:
-            print(f"Nombre: {cookie.name} | Secure: {cookie.secure} | Dominio: {cookie.domain}")
-
-except requests.exceptions.Timeout:
-    # error si se agota el tiempo de espera
-    print("❌ Error: Tiempo de espera agotado (Timeout).")
-
-except requests.exceptions.ConnectionError:
-    # error si falla la conexión o DNS
-    print("❌ Error: Problema de conexión (DNS o Red).")
-
-except Exception as e:
-    # si algo falla inesperadamente
-    print(f"❌ Ocurrió un error: {e}")
+    try:
+        # connecta al web i espera un màxim de 10 segons
+        resp = requests.get(url, headers=capcaleres_navegador, timeout=10, allow_redirects=True)
+        
+        # desa les dades bàsiques de la resposta
+        resultats['Codi Estat'] = resp.status_code
+        resultats['Codificació'] = resp.encoding
+        # mira si ens han redirigit a una altra adreça
+        resultats['Redireccions'] = [r.url for r in resp.history]
+        # calcula quant pesa la pàgina en kilobytes
+        resultats['Pes (KB)'] = round(len(resp.content) / 1024, 2)
+        # cerca el títol de la pàgina dins del codi
+        titol = re.findall('<title>(.*?)</title>', resp.text, re.IGNORECASE)
+        resultats['Títol web'] = titol[0].strip() if titol else "no té títol"
+        # comprova si estan actives les mesures de seguretat típiques
+        capcaleres_seguretat = ['Strict-Transport-Security', 'X-Frame-Options', 'Content-Security-Policy', 'Server', 'X-Powered-By']
+        resultats['Capçaleres'] = {k: resp.headers.get(k, "no existeix") for k in capcaleres_seguretat}
+        
+        # desa les cookies i mira si són segures
+        resultats['Cookies'] = []
+        for cookie in resp.cookies:
+            resultats['Cookies'].append(f"{cookie.name} (segura: {cookie.secure})")
+            
+    except Exception as e:
+        # si alguna cosa falla desa l'error
+        resultats['ERROR'] = str(e)
+        
+    return resultats

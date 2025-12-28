@@ -1,20 +1,8 @@
 import requests
 import re
 
-
-
-def get_response(url: str): 
-    if not url.startswith(("http://", "https://")):
-        url = "https://" + url
-
-    resp = requests.get(url, timeout=10, allow_redirects=True)
-    return resp.text, resp.headers, resp.status_code
-
-
-
-
-RULES = [
-    
+# llista de regles per detectar tecnologies com cms o servidors
+REGLES = [
     {
         "name": "WordPress",
         "type": "CMS",
@@ -22,24 +10,20 @@ RULES = [
         "pattern": r"wp-content|wp-includes",
         "version_regex": r"WordPress\s*([0-9\.]+)",
     },
-
-    
     {
         "name": "Apache",
-        "type": "Server",
+        "type": "Servidor",
         "where": "header:Server",
         "pattern": r"Apache",
         "version_regex": r"Apache/?([0-9\.]+)",
     },
     {
         "name": "Nginx",
-        "type": "Server",
+        "type": "Servidor",
         "where": "header:Server",
         "pattern": r"nginx",
         "version_regex": r"nginx/?([0-9\.]+)",
     },
-
-    
     {
         "name": "PHP",
         "type": "Backend",
@@ -48,114 +32,69 @@ RULES = [
         "version_regex": r"PHP/?([0-9\.]+)",
     },
     {
-        "name": "ASP.NET",
-        "type": "Backend",
-        "where": "header:X-Powered-By",
-        "pattern": r"ASP\.NET",
-        "version_regex": r"ASP\.NET/?([0-9\.]+)",
-    },
-
-    
-    {
         "name": "jQuery",
         "type": "Frontend",
         "where": "html",
         "pattern": r"jquery(-[0-9\.]+)?\.js",
         "version_regex": r"jquery-([0-9\.]+)\.js",
     },
-    {
-        "name": "React",
-        "type": "Frontend",
-        "where": "html",
-        "pattern": r"react\.js|react-dom\.js",
-        "version_regex": None,
-    },
-    {
-        "name": "Angular",
-        "type": "Frontend",
-        "where": "html",
-        "pattern": r"angular(\.min)?\.js",
-        "version_regex": r"angular-([0-9\.]+)\.js",
-    },
 ]
 
+def pillar_resposta(url): 
+    # descarrega el codi de la web i les capçaleres per analitzar-ho
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
 
+    try:
+        resp = requests.get(url, timeout=10, allow_redirects=True)
+        return resp.text, resp.headers, resp.status_code
+    except:
+        # si falla, torna valors buits
+        return "", {}, 0
 
+def detect_technologies(url):
+    # funció que busca coincidències amb les regles definides a dalt
+    html, headers, status = pillar_resposta(url)
 
-def detect_technologies(url: str):
-    html, headers, status = get_response(url)
-
-    
+    # posa les capçaleres en minúscules per facilitar la cerca
     headers_lower = {k.lower(): v for k, v in headers.items()}
 
-    result = []
+    tecnologies_trobades = []
 
-    for rule in RULES:
-        where = rule["where"]
-        pattern = re.compile(rule["pattern"], re.IGNORECASE)
-        version_regex = re.compile(rule["version_regex"], re.IGNORECASE) if rule.get("version_regex") else None
+    for regla in REGLES:
+        lloc = regla["where"]
+        patro = re.compile(regla["pattern"], re.IGNORECASE)
+        regex_versio = re.compile(regla["version_regex"], re.IGNORECASE) if regla.get("version_regex") else None
 
-        target_text = ""
+        text_a_mirar = ""
 
-        if where == "html":
-            target_text = html
-        elif where.startswith("header:"):
-            header_name = where.split(":", 1)[1].lower()
-            target_text = headers_lower.get(header_name, "")
+        # decideix on ha de mirar, si al html o a les capçaleres http
+        if lloc == "html":
+            text_a_mirar = html
+        elif lloc.startswith("header:"):
+            nom_header = lloc.split(":", 1)[1].lower()
+            text_a_mirar = headers_lower.get(nom_header, "")
 
-        if not target_text:
+        if not text_a_mirar:
             continue
 
-        
-        if pattern.search(target_text):
-            version = None
-            if version_regex:
-                m = version_regex.search(target_text)
+        # si troba el patró, afegeix la tecnologia a la llista
+        if patro.search(text_a_mirar):
+            versio = None
+            # si hi ha regex de versió, prova de trobar-la
+            if regex_versio:
+                m = regex_versio.search(text_a_mirar)
                 if m:
-                    version = m.group(1)
+                    versio = m.group(1)
 
-            result.append({
-                "name": rule["name"],
-                "type": rule["type"],
-                "version": version,
-                "source": where,
+            tecnologies_trobades.append({
+                "name": regla["name"],
+                "type": regla["type"],
+                "version": versio,
             })
 
     return {
         "url": url,
         "status_code": status,
-        "technologies": result,
-        "headers": dict(headers),
+        "technologies": tecnologies_trobades
     }
-
-
-
-
-def main():
-    url = input("Enter the URL to analyze: ").strip()
-    try:
-        info = detect_technologies(url)
-    except Exception as e:
-        print(f"Error while analyzing the URL: {e}")
-        return
-
-    print("\n=== Analysis result ===")
-    print(f"URL: {info['url']}")
-    print(f"HTTP status: {info['status_code']}\n")
-
-    if not info["technologies"]:
-        print("No technologies detected with the current rules.")
-    else:
-        print("Detected technologies:")
-        for t in info["technologies"]:
-            ver = t["version"] or "unknown"
-            print(f"- {t['name']} ({t['type']}), version {ver} [source: {t['source']}]")
-
-   
-    print("\nHTTP headers:")
-    for k, v in info["headers"].items():
-        print(f"{k}: {v}")
-
-
-if __name__ == "__main__":
-    main()

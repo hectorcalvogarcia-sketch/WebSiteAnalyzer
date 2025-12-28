@@ -1,26 +1,30 @@
-import requests
+import ssl
+import socket
 from datetime import datetime
-url = "https://enti.cat/"
 
-def check_certificate_validity(url):
-    headers = {
-    "User-Agent": "Mozilla/5.0"
-    }
-    response = requests.get(url, headers=headers, stream=True)
-    cert = response.raw.connection.sock.getpeercert()
+def verificar_caducitat_ssl(host, port=443): # comprova si el certificat de seguretat ha caducat, retorna true si està caducat, false si està bé
+    # crea una configuració bàsica que no verifiqui res encara
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_OPTIONAL
     
-    emission_date = cert['notBefore']
-    emission_date_formatted = datetime.strptime(emission_date, '%b %d %H:%M:%S %Y %Z')
+    try:
+        # connecta i demana el certificat al servidor
+        with socket.create_connection((host, port), timeout=5) as sock:
+            with context.wrap_socket(sock, server_hostname=host) as ssock:
+                cert = ssock.getpeercert()
 
-    expiration_date = cert['notAfter']
-    expiration_date_formatted = datetime.strptime(expiration_date, '%b %d %H:%M:%S %Y %Z')
-    
-    current_date = datetime.utcnow()
-    caducity = True if expiration_date_formatted < current_date else False
+        # si no hi ha certificat o no té data, assumim que està caducat
+        if not cert or 'notAfter' not in cert:
+            return True 
 
-    print(f"Certificate Emission Date: {emission_date_formatted}")
-    print(f"Certificate Expiration Date: {expiration_date_formatted}")
-
-    return caducity
-
-print(check_certificate_validity(url))
+        # converteix la data del certificat a un format entenedor
+        fmt = '%b %d %H:%M:%S %Y %Z'
+        data_expiracio = datetime.strptime(cert['notAfter'], fmt)
+        
+        # mira si la data actual és posterior a la de caducitat
+        return datetime.utcnow() > data_expiracio
+        
+    except:
+        # si dona error en connectar assumim que no és vàlid
+        return True
