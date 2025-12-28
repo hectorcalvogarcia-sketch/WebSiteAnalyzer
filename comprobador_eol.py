@@ -10,3 +10,40 @@ EOL_CATALOG = {
     ("PHP", "8.0"):        {"support_end": "2025-11-26", "eol": "2026-11-26"},
     
 }
+
+def _parse_eol_date(s: str | None) -> date | None:
+    if not s:
+        return None
+    return datetime.strptime(s, "%Y-%m-%d").date()
+
+def get_eol_status(product: str, version: str, today: date | None = None) -> dict:
+    today = today or date.today()
+    key = (product, version)
+    info = EOL_CATALOG.get(key)
+
+    if not info:
+        return {
+            "product": product,
+            "version": version,
+            "status": "UNKNOWN",
+            "support_end": "",
+            "eol": "",
+        }
+
+    support_end = _parse_eol_date(info.get("support_end"))
+    eol = _parse_eol_date(info.get("eol"))
+
+    if eol and eol <= today:
+        status = "EOL"
+    elif support_end and support_end <= today:
+        status = "NO_SUPPORT"
+    else:
+        status = "SUPPORTED"
+
+    return {
+        "product": product,
+        "version": version,
+        "status": status,
+        "support_end": support_end.isoformat() if support_end else "",
+        "eol": eol.isoformat() if eol else "",
+    }
