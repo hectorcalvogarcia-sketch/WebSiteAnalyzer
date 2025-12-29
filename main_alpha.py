@@ -1,8 +1,8 @@
 import sys
 from urllib.parse import urlparse
 
-# importem els nostres fitxers d'eines
-# assegura't que tots els fitxers .py estiguin a la mateixa carpeta
+# importem els mòduls del projecte
+# assegura't que tots els fitxers .py es troben al mateix directori
 import scanner
 import Detect
 import headers
@@ -10,10 +10,11 @@ import checkInsecureTLSversion
 import checkSSLcaducity
 import checkSelfsigned
 import cve_correlation
+import sqli_scan  
 
 def mostrar_seccio(titol, contingut):
     """
-    funció simple per imprimir les dades endreçades a la consola
+    funció auxiliar per formatar i imprimir els resultats a la consola
     """
     print(f"\n{'-'*40}")
     print(f" {titol}")
@@ -37,14 +38,14 @@ def mostrar_seccio(titol, contingut):
 def main():
     print("Iniciant WebSec Analyzer...")
     
-    # demana l'url a l'usuari i treu espais sobrants
+    # sol·licita l'url a l'usuari i elimina espais innecessaris
     target_url = input("Introdueix l'URL a analitzar: ").strip()
     
-    # si l'usuari no posa https l'hi posem nosaltres
+    # afegeix el protocol https automàticament si no s'especifica
     if not target_url.startswith("http"):
         target_url = "https://" + target_url
     
-    # treu només el nom del domini per a les proves de connexió
+    # extreu el domini principal per a les proves de connexió
     parsed = urlparse(target_url)
     host = parsed.netloc
     
@@ -55,7 +56,7 @@ def main():
     print("\n -> Comprovant si la web està activa...")
     scan_res = scanner.analyze_url(target_url)
     
-    # preparem les dades perquè es llegeixin bé
+    # estructura les dades per a una lectura clara
     dades_scanner = {
         "Online": "sí" if scan_res.get("alive") else "no",
         "Codi Estat": scan_res.get("status_code"),
@@ -63,7 +64,7 @@ def main():
     }
     mostrar_seccio("DISPONIBILITAT", dades_scanner)
     
-    # si el web no respon parem aquí
+    # atura l'execució si el servidor no respon
     if not scan_res.get("alive"):
         print("❌ ERROR: el servidor no respon. Fi de l'anàlisi")
         return
@@ -85,6 +86,7 @@ def main():
     }
     mostrar_seccio("TECNOLOGIES", tech_summary)
 
+    # cerca de cves associats a les tecnologies trobades
     if llista_tech:
         print("\n -> Cercant vulnerabilitats conegudes (CVE)...")
         cve_cve_results = cve_correlation.search_cve(llista_tech)
@@ -97,23 +99,32 @@ def main():
     headers_res = headers.analitzar_capcaleres(target_url)
     mostrar_seccio("CAPÇALERES HTTP", headers_res)
 
-    # 4. proves de seguretat ssl (només si és https)
+    # 4. proves de seguretat ssl (només si s'utilitza https)
     if target_url.startswith("https"):
         print("\n -> Realitzant proves de seguretat SSL/TLS...")
         
-        # prova de versions antigues
+        # verificació de protocols antics
         tls_res = checkInsecureTLSversion.verificar_tls_insegur(host)
         mostrar_seccio("PROTOCOLS OBSOLETS", tls_res)
         
-        # prova de caducitat
+        # verificació de caducitat del certificat
         caducat = checkSSLcaducity.verificar_caducitat_ssl(host)
         mostrar_seccio("ESTAT CERTIFICAT", {"Està caducat?": "sí" if caducat else "no"})
         
-        # prova d'autofirmat
+        # verificació de certificat autofirmat
         autofirmat = checkSelfsigned.verificar_certificat_autofirmat(host)
         mostrar_seccio("TIPUS DE SIGNATURA", {"És autofirmat?": "sí" if autofirmat else "no"})
     else:
         print("\n[!] Saltant proves SSL perquè el web no utilitza https")
+
+    # 5. escàner d'injecció sql
+    print("\n -> Buscant vulnerabilitats d'SQL Injection...")
+    sqli_res = sqli_scan.escaner_sqli(target_url)
+    
+    if sqli_res["vulnerable"]:
+        mostrar_seccio("SQL INJECTION TROBAT", {"Estat": "VULNERABLE ❌", "Detalls": sqli_res["bugs"]})
+    else:
+        mostrar_seccio("SQL INJECTION", {"Estat": "Segur (aparentment) ✅", "Info": sqli_res.get("info", "cap error detectat")})
 
     print("\n✅ Anàlisi completat.")
 
