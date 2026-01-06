@@ -11,29 +11,7 @@ import checkSSLcaducity
 import checkSelfsigned
 import cve_correlation
 import sqli_scan  
-
-def mostrar_seccio(titol, contingut):
-    """
-    funció auxiliar per formatar i imprimir els resultats a la consola
-    """
-    print(f"\n{'-'*40}")
-    print(f" {titol}")
-    print(f"{'-'*40}")
-    
-    if isinstance(contingut, dict):
-        for k, v in contingut.items():
-            if isinstance(v, list):
-                print(f"{k}:")
-                for item in v:
-                    print(f"  - {item}")
-            elif isinstance(v, dict):
-                print(f"{k}:")
-                for sub_k, sub_v in v.items():
-                    print(f"  - {sub_k}: {sub_v}")
-            else:
-                print(f"{k}: {v}")
-    else:
-        print(f"{contingut}")
+import functions as func
 
 def main():
     print("Iniciant WebSec Analyzer...")
@@ -62,7 +40,7 @@ def main():
         "Codi Estat": scan_res.get("status_code"),
         "Latència (temps càrrega)": f"{scan_res.get('load_time')} seg"
     }
-    mostrar_seccio("DISPONIBILITAT", dades_scanner)
+    func.mostrar_seccio("DISPONIBILITAT", dades_scanner)
     
     # atura l'execució si el servidor no respon
     if not scan_res.get("alive"):
@@ -84,20 +62,20 @@ def main():
     tech_summary = {
         "Tecnologies detectades": llista_tech if llista_tech else ["no s'ha detectat res específic"]
     }
-    mostrar_seccio("TECNOLOGIES", tech_summary)
+    func.mostrar_seccio("TECNOLOGIES", tech_summary)
 
     # cerca de cves associats a les tecnologies trobades
     if llista_tech:
         print("\n -> Cercant vulnerabilitats conegudes (CVE)...")
         cve_cve_results = cve_correlation.search_cve(llista_tech)
-        mostrar_seccio("VULNERABILITATS CVE", cve_cve_results)
+        func.mostrar_seccio("VULNERABILITATS CVE", cve_cve_results)
     else:
         print("\n[!] No s'han detectat tecnologies, saltant cerca de CVEs")
 
     # 3. anàlisi de capçaleres
     print("\n -> Revisant capçaleres http...")
     headers_res = headers.analitzar_capcaleres(target_url)
-    mostrar_seccio("CAPÇALERES HTTP", headers_res)
+    func.mostrar_seccio("CAPÇALERES HTTP", headers_res)
 
     # 4. proves de seguretat ssl (només si s'utilitza https)
     if target_url.startswith("https"):
@@ -105,15 +83,15 @@ def main():
         
         # verificació de protocols antics
         tls_res = checkInsecureTLSversion.verificar_tls_insegur(host)
-        mostrar_seccio("PROTOCOLS OBSOLETS", tls_res)
+        func.mostrar_seccio("PROTOCOLS OBSOLETS", tls_res)
         
         # verificació de caducitat del certificat
         caducat = checkSSLcaducity.verificar_caducitat_ssl(host)
-        mostrar_seccio("ESTAT CERTIFICAT", {"Està caducat?": "sí" if caducat else "no"})
+        func.mostrar_seccio("ESTAT CERTIFICAT", {"Està caducat?": "sí" if caducat else "no"})
         
         # verificació de certificat autofirmat
         autofirmat = checkSelfsigned.verificar_certificat_autofirmat(host)
-        mostrar_seccio("TIPUS DE SIGNATURA", {"És autofirmat?": "sí" if autofirmat else "no"})
+        func.mostrar_seccio("TIPUS DE SIGNATURA", {"És autofirmat?": "sí" if autofirmat else "no"})
     else:
         print("\n[!] Saltant proves SSL perquè el web no utilitza https")
 
@@ -122,9 +100,9 @@ def main():
     sqli_res = sqli_scan.escaner_sqli(target_url)
     
     if sqli_res["vulnerable"]:
-        mostrar_seccio("SQL INJECTION TROBAT", {"Estat": "VULNERABLE ❌", "Detalls": sqli_res["bugs"]})
+        func.mostrar_seccio("SQL INJECTION TROBAT", {"Estat": "VULNERABLE ❌", "Detalls": sqli_res["bugs"]})
     else:
-        mostrar_seccio("SQL INJECTION", {"Estat": "Segur (aparentment) ✅", "Info": sqli_res.get("info", "cap error detectat")})
+        func.mostrar_seccio("SQL INJECTION", {"Estat": "Segur (aparentment) ✅", "Info": sqli_res.get("info", "cap error detectat")})
 
     print("\n✅ Anàlisi completat.")
 
