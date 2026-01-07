@@ -108,3 +108,18 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+from scanner import analyze_url
+from report_pdf import generate_pdf_report  
+
+def main():
+    url = input("Introdeix una URL para analitzar: ")
+    resultat = analyze_url(url)
+    print(resultat)  
+
+    # Generar PDF
+    generate_pdf_report(resultat, "informe_analisis.pdf")
+    print("Informe PDF generat: informe_analisis.pdf")
+
+if __name__ == "__main__":
+    main()
