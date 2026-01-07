@@ -6,23 +6,56 @@ from datetime import datetime
 def calcular_puntuacio_global(resultat: dict) -> int:
     puntuacio = 100
 
-    # Si la web no està viva, la puntuació és 0 directament
+    # Disponibilitat
     if not resultat.get("alive", False):
         return 0
 
-    # Penalitzar si el codi d'estat no és 200
-    codi = resultat.get("status_code", 0)
-    if codi != 200:
+    status = resultat.get("status_code", 0)
+    if status != 200:
         puntuacio -= 20
 
-    # Penalitzar si el temps de càrrega és alt
-    temps_carrega = resultat.get("load_time", 0)
-    if temps_carrega > 3:
+    # Rendiment
+    load_time = resultat.get("load_time", 0)
+    if isinstance(load_time, (int, float)) and load_time > 3:
         puntuacio -= 10
 
-    # Limitar la puntuació entre 0 i 100
-    return max(0, min(100, puntuacio))
+    # TLS insegur
+    if resultat.get("tls_insecure", False):
+        puntuacio -= 30
 
+    # Certificat caducat
+    cert_info = resultat.get("certificate", {})
+    if cert_info.get("expired", False) or resultat.get("cert_expired", False):
+        puntuacio -= 30
+
+    # Certificat autosignat
+    if resultat.get("self_signed", False):
+        puntuacio -= 15
+
+    # Versions en EoL / sense suport
+    eol_list = resultat.get("eol", [])
+    penalitzacio_eol = 0
+    for item in eol_list:
+        status = item.get("status")
+        if status in ("EOL", "NO_SUPPORT"):
+            penalitzacio_eol += 20
+    puntuacio -= min(penalitzacio_eol, 40)
+
+    # Fuites / leaks
+    if resultat.get("has_leaks", False):
+        puntuacio -= 40
+
+    # Limitar entre 0 i 100
+    return max(0, min(100, puntuacio))
+def classificar_risc(puntuacio: int) -> str:
+    if puntuacio >= 80:
+        return "Baix"
+    elif puntuacio >= 50:
+        return "Mitjà"
+    elif puntuacio >= 20:
+        return "Alt"
+    else:
+        return "Crític"
 
 def generate_pdf_report(resultat: dict, filename: str) -> None:
     # Crear el canvas del PDF amb mida A4
@@ -38,15 +71,19 @@ def generate_pdf_report(resultat: dict, filename: str) -> None:
     c.drawString(2 * cm, height - 3.5 * cm, f"Data de l'informe: {data}")
     c.drawString(2 * cm, height - 4.5 * cm, f"URL analitzada: {resultat.get('url', '')}")
 
-    # Calcul i mostra de la puntuació global
+    # Càlcul i mostra de la puntuació global
     puntuacio = calcular_puntuacio_global(resultat)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(2 * cm, height - 6 * cm, f"Puntuació global: {puntuacio}/100")
+    nivell_risc = classificar_risc(puntuacio)
 
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(2 * cm, height - 6 * cm,
+                 f"Puntuació global: {puntuacio}/100")
+    c.drawString(2 * cm, height - 7 * cm,
+                 f"Nivell de risc: {nivell_risc}")
     # Passar a una nova pàgina
     c.showPage()
 
-    # === Troballes detallades ===
+    
     c.setFont("Helvetica-Bold", 16)
     c.drawString(2 * cm, height - 2 * cm, "Troballes detallades")
 
@@ -79,7 +116,7 @@ def generate_pdf_report(resultat: dict, filename: str) -> None:
     c.drawString(2 * cm, y,
                  "- Aquest informe es pot ampliar amb més troballes (TLS, certificats, leaks, EoL, etc.).")
 
-    # Opcional: una nova pàgina per més evidència
+    #Una nova pàgina per més evidència
     c.showPage()
 
     
