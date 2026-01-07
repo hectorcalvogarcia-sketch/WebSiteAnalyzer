@@ -1,0 +1,11 @@
+2026-01-07 20:09:29 - INFO - Iniciant escaneig: http://testphp.vulnweb.com/search.php?test=query
+2026-01-07 20:09:30 - INFO - Web online: http://testphp.vulnweb.com/search.php?test=query (Codi: 200)
+2026-01-07 20:09:30 - INFO - Tecnologia trobada: Nginx v1.19.0
+2026-01-07 20:09:30 - INFO - Tecnologia trobada: PHP v5.6.40
+2026-01-07 20:09:32 - WARNING - S'han trobat CVEs per a: ['php 5.6.40']
+2026-01-07 20:09:33 - INFO - Headers analitzats per: http://testphp.vulnweb.com/search.php?test=query
+2026-01-07 20:09:33 - INFO - Iniciant escaneig SQLi per: http://testphp.vulnweb.com/search.php?test=query
+2026-01-07 20:09:35 - CRITICAL - Vulnerabilitat SQLi trobada a: http://testphp.vulnweb.com/search.php?test=query
+2026-01-07 20:09:35 - INFO - Escaneig finalitzat
+2026-01-07 20:10:43 - INFO - Iniciant escaneig: f
+2026-01-07 20:10:46 - WARNING - El web no respon: https://f
