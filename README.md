@@ -36,7 +36,7 @@ Segueix aquests passos per preparar l'entorn de desenvolupament:
 1. **Clonar el repositori:**
 
    ```bash
-   git clone [https://github.com/hectorcalvogarcia-sketch/WebSec-Analyzer](https://github.com/hectorcalvogarcia-sketch/WebSec-Analyzer)
+   git clone https://github.com/hectorcalvogarcia-sketch/WebSec-Analyzer
    cd WebSec-Analyzer
    ```
 2. **Opcional (Recomanat): Crear un entorn virtual:**
